@@ -1,0 +1,50 @@
+#!/bin/bash
+
+set -Eeuo pipefail
+
+agent_name="${1:-codex}"
+if [[ $# -gt 0 ]]; then
+    shift
+fi
+
+config_file="/etc/prompttty/agents.d/${agent_name}.conf"
+configured_command=""
+if [[ -r "$config_file" ]]; then
+    # The files are root-owned image configuration and are not writable by the
+    # prompt user during normal operation.
+    # shellcheck disable=SC1090
+    source "$config_file"
+    configured_command="${PROMPTTTY_AGENT_COMMAND:-}"
+fi
+
+case "$agent_name" in
+    codex) default_command="codex" ;;
+    pi) default_command="pi" ;;
+    claude) default_command="claude" ;;
+    opencode) default_command="opencode" ;;
+    custom) default_command="" ;;
+    *)
+        printf 'PromptTTY: unknown agent backend: %s\n' "$agent_name" >&2
+        exit 64
+        ;;
+esac
+
+command_name="${configured_command:-$default_command}"
+if [[ -z "$command_name" ]]; then
+    printf 'PromptTTY: no command configured for agent backend %s.\n' "$agent_name" >&2
+    printf 'Set PROMPTTTY_AGENT_COMMAND in %s.\n' "$config_file" >&2
+    exit 127
+fi
+
+if [[ "$command_name" == */* ]]; then
+    command_path="$command_name"
+else
+    command_path="$(type -P "$command_name" || true)"
+fi
+
+if [[ -z "$command_path" || ! -x "$command_path" ]]; then
+    printf 'PromptTTY: backend %s is not installed (%s).\n' "$agent_name" "$command_name" >&2
+    exit 127
+fi
+
+exec "$command_path" "$@"

@@ -1,0 +1,90 @@
+HAVE_NPROC=y
+HAVE_CGROUP=y
+
+# LFS systemd, stable 13.0, using the book archive unpacked by PromptTTY.
+BOOK_LFS_ANY=y
+# BOOK_LFS is not set
+BOOK_LFS_SYSD=y
+INITSYS="systemd"
+RUN_ME="./jhalfs run"
+# BRANCH is not set
+WORKING_COPY=y
+BOOK="__BOOK_DIR__"
+LFS_MULTILIB_NO=y
+MULTILIB="default"
+BUILD_CHROOT=y
+METHOD="chroot"
+# BLFS_TOOL is not set
+# CUSTOM_TOOLS is not set
+
+LUSER="lfs"
+LGROUP="lfs"
+LHOME="/home"
+BUILDDIR="__LFS_DIR__"
+GETPKG=y
+SRC_ARCHIVE="__SOURCE_DIR__"
+RETRYSRCDOWNLOAD=y
+RETRYDOWNLOADCNT=5
+DOWNLOADTIMEOUT=60
+# PromptTTY invokes the generated Makefile through a pseudo-terminal so the
+# jhalfs terminal-size check works in non-interactive Docker/CI builds.
+RUNMAKE=n
+# CLEAN is not set
+
+# Tests are intentionally disabled for the first image milestone; the target
+# can be rebuilt with CONFIG_TESTS=y for an audit build.
+# CONFIG_TESTS is not set
+TEST=0
+# BOMB_TEST is not set
+# PKGMNGT is not set
+# INSTALL_LOG is not set
+# STRIP is not set
+DEL_LA_FILES=y
+NO_PROGRESS_BAR=y
+# Use the JOBS value supplied by the outer Makefile instead of consuming every
+# CPU assigned to Docker Desktop.
+ALL_CORES=n
+N_PARALLEL=__JOBS__
+CPUSET="all"
+
+# System configuration. PromptTTY applies DHCP and console policy in its
+# overlay, after jhalfs has completed the LFS book.
+# HAVE_FSTAB is not set
+# CONFIG_BUILD_KERNEL is not set
+TIMEZONE="GMT"
+LANG="en_US.UTF-8"
+# FULL_LOCALE is not set
+PAGE_LETTER=y
+PAGE="letter"
+HOSTNAME="prompttty"
+INTERFACE="eth0"
+IP_ADDR="10.0.2.9"
+GATEWAY="10.0.2.2"
+PREFIX="24"
+BROADCAST="10.0.2.255"
+DOMAIN="local"
+DNS1="10.0.2.3"
+DNS2="8.8.8.8"
+FONT="lat0-16"
+KEYMAP="us"
+# LOCAL is not set
+
+OPTIMIZE=0
+# CONFIG_OPTIMIZE is not set
+# REPORT is not set
+# SAVE_CH5 is not set
+# COMPARE is not set
+
+SCRIPT_ROOT="jhalfs"
+JHALFSDIR="$BUILDDIR/$SCRIPT_ROOT"
+LOGDIRBASE="logs"
+LOGDIR="$JHALFSDIR/$LOGDIRBASE"
+TESTLOGDIRBASE="test-logs"
+TESTLOGDIR="$JHALFSDIR/$TESTLOGDIRBASE"
+FILELOGDIRBASE="installed-files"
+FILELOGDIR="$JHALFSDIR/$FILELOGDIRBASE"
+ICALOGDIR="$LOGDIR/ICA"
+MKFILE="$JHALFSDIR/Makefile"
+XSL="lfs.xsl"
+PKG_LST="unpacked"
+REBUILD_MAKEFILE=n

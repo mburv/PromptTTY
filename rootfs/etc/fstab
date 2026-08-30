@@ -1,0 +1,2 @@
+# PromptTTY boots directly from its initramfs.
+# No persistent root or swap devices are configured yet.

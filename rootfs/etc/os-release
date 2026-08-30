@@ -1,0 +1,9 @@
+NAME="PromptTTY"
+PRETTY_NAME="PromptTTY 0.1"
+ID=prompttty
+ID_LIKE=linux
+VERSION_ID="0.1"
+VERSION="0.1"
+HOME_URL="https://github.com/mburv/PromptTTY"
+SUPPORT_URL="https://github.com/mburv/PromptTTY/issues"
+BUG_REPORT_URL="https://github.com/mburv/PromptTTY/issues"

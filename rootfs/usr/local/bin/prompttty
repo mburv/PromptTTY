@@ -1,0 +1,200 @@
+#!/bin/bash
+
+set -Eeuo pipefail
+
+CONFIG_FILE="${PROMPTTTY_CONFIG:-/etc/prompttty/prompttty.conf}"
+if [[ -r "$CONFIG_FILE" ]]; then
+    # The image configuration is installed root-owned by the build.
+    # shellcheck disable=SC1090
+    source "$CONFIG_FILE"
+fi
+
+PROMPTTTY_AGENT="${PROMPTTTY_AGENT:-codex}"
+PROMPTTTY_WORKSPACE="${PROMPTTTY_WORKSPACE:-/home/prompt/workspace}"
+PROMPTTTY_ALLOW_SHELL="${PROMPTTTY_ALLOW_SHELL:-1}"
+
+print_banner() {
+    printf '\n'
+    printf '========================================\n'
+    printf '              PromptTTY                 \n'
+    printf '       agent-native Linux console       \n'
+    printf '========================================\n'
+    printf 'Workspace: %s\n' "$PROMPTTTY_WORKSPACE"
+    printf 'Agent:     %s\n' "$PROMPTTTY_AGENT"
+    printf 'Network:   %s\n' "$(network_state)"
+}
+
+network_state() {
+    local operational
+
+    if ! command -v networkctl >/dev/null 2>&1; then
+        printf 'networkctl unavailable'
+        return 0
+    fi
+
+    # `networkctl is-online` waits for the online timeout when the guest has
+    # no usable NIC. That made the login banner appear to hang in UTM, whose
+    # default e1000 device was not built into the first kernel. Read the
+    # current link state instead; this is immediate and still reflects DHCP
+    # progress accurately enough for a console banner.
+    operational="$(networkctl list --no-pager --no-legend 2>/dev/null |
+        awk '$2 != "lo" { print $4; exit }' || true)"
+    case "$operational" in
+        routable|degraded|configured|carrier)
+            printf 'connected'
+            ;;
+        *)
+            printf 'initializing or unavailable'
+            ;;
+    esac
+}
+
+run_agent() {
+    local requested_agent="${1:-$PROMPTTTY_AGENT}"
+    if [[ $# -gt 0 ]]; then
+        shift
+    fi
+
+    local status=0
+    /usr/local/bin/prompttty-agent "$requested_agent" "$@" || status=$?
+    if [[ "$status" -eq 0 ]]; then
+        return 0
+    fi
+    if [[ "$status" -eq 127 ]]; then
+        printf 'PromptTTY: %s is unavailable; use `doctor` or install its CLI.\n' "$requested_agent" >&2
+    fi
+    return "$status"
+}
+
+doctor() {
+    printf 'PromptTTY doctor\n'
+    printf '  PID 1: '
+    if [[ -r /proc/1/comm ]]; then
+        tr -d '\n' < /proc/1/comm
+        printf '\n'
+    else
+        printf 'unknown\n'
+    fi
+    printf '  systemd-networkd: '
+    if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet systemd-networkd; then
+        printf 'active\n'
+    else
+        printf 'inactive or not queryable\n'
+    fi
+    printf '  network: '
+    case "$(network_state)" in
+        connected) printf 'online\n' ;;
+        *) printf 'offline or initializing\n' ;;
+    esac
+    printf '  backend %s: ' "$PROMPTTTY_AGENT"
+    if /usr/local/bin/prompttty-agent "$PROMPTTTY_AGENT" --version >/dev/null 2>&1; then
+        printf 'available\n'
+    else
+        printf 'not available\n'
+    fi
+}
+
+show_version() {
+    if [[ -r /etc/os-release ]]; then
+        # shellcheck disable=SC1091
+        source /etc/os-release
+        printf '%s %s\n' "${PRETTY_NAME:-PromptTTY}" "${VERSION_ID:-unknown}"
+    else
+        printf 'PromptTTY 0.1\n'
+    fi
+}
+
+command_loop() {
+    local line
+    local -a words
+
+    while true; do
+        # Bash writes `read -p` prompts to stderr. The systemd unit keeps
+        # stderr in the same guest terminal now, but writing the prompt to
+        # stdout makes it visible for both tty1 and serial consoles.
+        printf '> '
+        if ! IFS= read -r line; then
+            # Keep the service alive if a VM frontend briefly presents an
+            # unavailable stdin. Exiting here makes systemd restart the unit,
+            # which clears the virtual terminal and looks like a blank boot.
+            printf '\nConsole input is unavailable; retrying...\n'
+            sleep 1
+            continue
+        fi
+        [[ -z "$line" ]] && continue
+        read -r -a words <<< "$line"
+
+        case "${words[0]}" in
+            help)
+                printf 'Commands: agent [name], doctor, network, shell, version, help, exit\n'
+                ;;
+            agent)
+                if [[ "${#words[@]}" -gt 1 ]]; then
+                    if ! run_agent "${words[@]:1}"; then
+                        true
+                    fi
+                else
+                    if ! run_agent "$PROMPTTTY_AGENT"; then
+                        true
+                    fi
+                fi
+                ;;
+            doctor)
+                doctor
+                ;;
+            network)
+                if command -v networkctl >/dev/null 2>&1; then
+                    networkctl status --no-pager || true
+                else
+                    printf 'networkctl is not installed\n'
+                fi
+                ;;
+            shell)
+                if [[ "$PROMPTTTY_ALLOW_SHELL" = 1 ]]; then
+                    /bin/bash --login
+                else
+                    printf 'shell access is disabled by policy\n'
+                fi
+                ;;
+            version)
+                show_version
+                ;;
+            exit|quit)
+                return 0
+                ;;
+            *)
+                printf 'Unknown PromptTTY command: %s (try `help`)\n' "${words[0]}"
+                ;;
+        esac
+    done
+}
+
+case "${1:---tty}" in
+    --tty)
+        print_banner
+        if ! run_agent "$PROMPTTTY_AGENT"; then
+            true
+        fi
+        command_loop
+        ;;
+    --shell)
+        exec /bin/bash --login
+        ;;
+    agent)
+        shift
+        run_agent "${1:-$PROMPTTTY_AGENT}" "${@:2}"
+        ;;
+    doctor)
+        doctor
+        ;;
+    network)
+        command_loop <<< 'network'
+        ;;
+    version)
+        show_version
+        ;;
+    *)
+        printf 'usage: prompttty [--tty|--shell|agent [name]|doctor|network|version]\n' >&2
+        exit 2
+        ;;
+esac

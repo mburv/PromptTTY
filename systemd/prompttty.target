@@ -1,0 +1,9 @@
+[Unit]
+Description=PromptTTY agent console
+Requires=basic.target
+Wants=prompttty.service prompttty-serial.service getty@tty2.service
+After=basic.target systemd-networkd.service systemd-resolved.service
+AllowIsolate=yes
+
+[Install]
+Alias=default.target

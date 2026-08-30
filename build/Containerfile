@@ -1,0 +1,72 @@
+FROM debian:bookworm-slim
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        autoconf \
+        automake \
+        bc \
+        bison \
+        build-essential \
+        bzip2 \
+        ca-certificates \
+        cpio \
+        coreutils \
+        curl \
+        diffutils \
+        docbook-xml \
+        docbook-xsl \
+        file \
+        flex \
+        findutils \
+        gawk \
+        gettext \
+        git \
+        grub-common \
+        grub-pc-bin \
+        gzip \
+        libacl1-dev \
+        libattr1-dev \
+        libcap-dev \
+        libelf-dev \
+        libffi-dev \
+        libgmp-dev \
+        libmpc-dev \
+        libmpfr-dev \
+        libncurses-dev \
+        libssl-dev \
+        libxml2-utils \
+        libxslt1-dev \
+        make \
+        m4 \
+        mount \
+        mtools \
+        patch \
+        perl \
+        pkg-config \
+        python3 \
+        rsync \
+        sed \
+        sudo \
+        tar \
+        texinfo \
+        util-linux \
+        wget \
+        xsltproc \
+        xorriso \
+        xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --gid 1000 builder \
+    && useradd --uid 1000 --gid builder --create-home --shell /bin/bash builder \
+    && printf '%s\n' 'builder ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/prompttty \
+    && chmod 0440 /etc/sudoers.d/prompttty \
+    && install --directory --mode=1777 /work
+
+ENV LC_ALL=C \
+    LANG=C \
+    TZ=UTC
+
+WORKDIR /src
+ENTRYPOINT ["/src/build/container-entrypoint.sh"]

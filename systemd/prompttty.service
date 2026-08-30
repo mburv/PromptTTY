@@ -1,0 +1,23 @@
+[Unit]
+Description=PromptTTY console on tty1
+ConditionKernelCommandLine=!prompttty.console=serial
+After=systemd-networkd.service systemd-resolved.service
+Wants=systemd-networkd.service systemd-resolved.service
+
+[Service]
+Type=simple
+User=prompt
+Group=prompt
+WorkingDirectory=/home/prompt/workspace
+Environment=TERM=linux
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/usr/local/bin/prompttty --tty
+Restart=on-failure
+RestartSec=2
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYReset=yes
+TTYVHangup=no
+TTYVTDisallocate=no
